@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>EOcross solver</title>
+		<script>
+			const MOVE = {
+				R1: {cycle: {UR:"BR", BR:"DR", DR:"FR", FR:"UR"}, eoFlip: false, s: "R"},
+				R2: {cycle: {UR:"DR", BR:"FR", DR:"UR", FR:"BR"}, eoFlip: false, s: "R2"},
+				R3: {cycle: {UR:"FR", BR:"UR", DR:"BR", FR:"DR"}, eoFlip: false, s: "R'"},
+				L1: {cycle: {UL:"FL", BL:"UL", DL:"BL", FL:"DL"}, eoFlip: false, s: "L"},
+				L2: {cycle: {UL:"DL", BL:"FL", DL:"UL", FL:"BL"}, eoFlip: false, s: "L2"},
+				L3: {cycle: {UL:"BL", BL:"DL", DL:"FL", FL:"UL"}, eoFlip: false, s: "L'"},
+				U1: {cycle: {UB:"UR", UR:"UF", UF:"UL", UL:"UB"}, eoFlip: false, s: "U"},
+				U2: {cycle: {UB:"UF", UR:"UL", UF:"UB", UL:"UR"}, eoFlip: false, s: "U2"},
+				U3: {cycle: {UB:"UL", UR:"UB", UF:"UR", UL:"UF"}, eoFlip: false, s: "U'"},
+				D1: {cycle: {DB:"DL", DL:"DF", DF:"DR", DR:"DB"}, eoFlip: false, s: "D"},
+				D2: {cycle: {DB:"DF", DR:"DL", DF:"DB", DL:"DR"}, eoFlip: false, s: "D2"},
+				D3: {cycle: {DB:"DR", DR:"DF", DF:"DL", DL:"DB"}, eoFlip: false, s: "D'"},
+				F1: {cycle: {UF:"FR", FR:"DF", DF:"FL", FL:"UF"}, eoFlip: true, s: "F"},
+				F2: {cycle: {UF:"DF", FR:"FL", DF:"UF", FL:"FR"}, eoFlip: false, s: "F2"},
+				F3: {cycle: {UF:"FL", FR:"UF", DF:"FR", FL:"DF"}, eoFlip: true, s: "F'"},
+				B1: {cycle: {UB:"BL", BL:"DB", DB:"BR", BR:"UB"}, eoFlip: true, s: "B"},
+				B2: {cycle: {UB:"DB", BR:"BL", DB:"UB", BL:"BR"}, eoFlip: false, s: "B2"},
+				B3: {cycle: {UB:"BR", BR:"DB", DB:"BL", BL:"UB"}, eoFlip: true, s: "B'"}};
+			const ANGLE = {
+				FBz0: {U:"U", D:"D", R:"R", L:"L", F:"F", B:"B"},
+				FBz1: {U:"R", D:"L", R:"D", L:"U", F:"F", B:"B"},
+				FBz2: {U:"D", D:"U", R:"L", L:"R", F:"F", B:"B"},
+				FBz3: {U:"L", D:"R", R:"U", L:"D", F:"F", B:"B"},
+				RLz0: {U:"U", D:"D", R:"F", F:"L", L:"B", B:"R"},
+				RLz1: {U:"R", D:"L", R:"F", F:"U", L:"B", B:"D"},
+				RLz2: {U:"D", D:"U", R:"F", F:"R", L:"B", B:"L"},
+				RLz3: {U:"L", D:"R", R:"F", F:"D", L:"B", B:"U"},
+				UDz0: {U:"B", D:"F", R:"R", L:"L", F:"U", B:"D"},
+				UDz1: {U:"B", D:"F", R:"D", L:"U", F:"R", B:"L"},
+				UDz2: {U:"B", D:"F", R:"L", L:"R", F:"D", B:"U"},
+				UDz3: {U:"B", D:"F", R:"U", L:"D", F:"L", B:"R"},
+			};
+			const ZSTR = {z0: "", z1: "z ", z2: "z2 ", z3: "z' "};
+			const AXISSTR = {FB:"", RL: "y ", UD: "x "};
+			var eoMaxDepth;
+			var bestSolutionHtm;
+			var solutions;
+			function applyMove(cube, move) {
+				let newCube = {
+					ep: {
+						UB:cube.ep.UB, UR:cube.ep.UR, UF:cube.ep.UF, UL:cube.ep.UL,
+					 	FR:cube.ep.FR, FL:cube.ep.FL, BR:cube.ep.BR, BL:cube.ep.BL,
+					 	DF:cube.ep.DF, DR:cube.ep.DR, DB:cube.ep.DB, DL:cube.ep.DL},
+					eo: {
+						UB:cube.eo.UB, UR:cube.eo.UR, UF:cube.eo.UF, UL:cube.eo.UL,
+					 	FR:cube.eo.FR, FL:cube.eo.FL, BR:cube.eo.BR, BL:cube.eo.BL,
+					 	DF:cube.eo.DF, DR:cube.eo.DR, DB:cube.eo.DB, DL:cube.eo.DL}};
+				if (move.eoFlip) {
+					for (let c in move.cycle) {
+						newCube.ep[move.cycle[c]] = cube.ep[c];
+						newCube.eo[move.cycle[c]] = !cube.eo[c];
+					}
+				} else {
+					for (let c in move.cycle) {
+						newCube.ep[move.cycle[c]] = cube.ep[c];
+						newCube.eo[move.cycle[c]] = cube.eo[c];
+					}
+				}
+				return newCube;
+			}
+			function solveCross(cube, solution, prevMove, depth) {
+				if (cube.ep.DB == "DB" && cube.ep.DR == "DR" && cube.ep.DF == "DF" && cube.ep.DL == "DL") {
+					if (depth < bestSolutionHtm) {
+						bestSolutionHtm = depth;
+					}
+					solutions.push(solution);
+					return;
+				}
+				if (depth >= bestSolutionHtm) {
+					return;
+				}
+				for (let move in MOVE) {
+					if (MOVE[move].s[0] != prevMove && !MOVE[move].eoFlip) {
+						solveCross(applyMove(cube, MOVE[move]), solution + MOVE[move].s + " ", MOVE[move].s[0], depth + 1);
+					}
+				}
+			}
+			function solveEocross(cube, solution="", prevMove=null, depth=0) {
+				if (
+					cube.eo.UB && cube.eo.UR && cube.eo.UF && cube.eo.UL &&
+					cube.eo.FR && cube.eo.FL && cube.eo.BR && cube.eo.BL &&
+					cube.eo.DF && cube.eo.DR && cube.eo.DB && cube.eo.DL) {
+					solveCross(cube, solution + "/ ", prevMove, depth);
+					return;
+				}
+				if (depth >= eoMaxDepth) {
+					return;
+				}
+				if (!cube.eo.FR && !cube.eo.FL && !cube.eo.UF && !cube.eo.DF) {
+					solveEocross(applyMove(cube, MOVE.F1), solution + "F ", "F", depth + 1);
+					solveEocross(applyMove(cube, MOVE.F3), solution + "F' ", "F", depth + 1);
+					return;
+				}
+				if (!cube.eo.BR && !cube.eo.BL && !cube.eo.UB && !cube.eo.DB) {
+					solveEocross(applyMove(cube, MOVE.B1), solution + "B ", "B", depth + 1);
+					solveEocross(applyMove(cube, MOVE.B3), solution + "B' ", "B", depth + 1);
+					return;
+				}
+				for (let move in MOVE) {
+					if (MOVE[move].s[0] != prevMove) {
+						solveEocross(applyMove(cube, MOVE[move]), solution + MOVE[move].s + " ", MOVE[move].s[0], depth + 1);
+					}
+				}
+			}
+			function solve() {
+				for (let angle in ANGLE) {
+					let cube = {
+						ep: {
+							UB:"UB", UR:"UR", UF:"UF", UL:"UL",
+							FR:"FR", FL:"FL", BR:"BR", BL:"BL",
+							DF:"DF", DR:"DR", DB:"DB", DL:"DL"},
+						eo: {
+							UB:true, UR:true, UF:true, UL:true,
+							FR:true, FL:true, BR:true, BL:true,
+							DF:true, DR:true, DB:true, DL:true}};
+					let scramble = document.getElementById("scramble").value.split(" ");
+					for (let i = 0; i < scramble.length; i++) {
+						for (let move in MOVE) {
+							if (MOVE[move].s == scramble[i]) {
+								let convertedMove = ANGLE[angle][move[0]];
+								if (move.length == 2) {
+									convertedMove += move[1];
+								}
+								cube = applyMove(cube, MOVE[convertedMove]);
+								break;
+							}
+						}
+					}
+					solutions = [];
+					eoMaxDepth = Number(document.getElementById("eoMaxDepth").value);
+					let crossMaxDepth = Number(document.getElementById("crossMaxDepth").value);
+					bestSolutionHtm = eoMaxDepth + crossMaxDepth;
+					solveEocross(cube);
+					if (solutions.length > 0) {
+						document.getElementById(angle).value = `max ${eoMaxDepth}, ${crossMaxDepth}\n${bestSolutionHtm} HTM\n`;
+						for (let i = 0; i < solutions.length; i++) {
+							if (solutions[i].split(" ").length - 2 == bestSolutionHtm) {
+								document.getElementById(angle).value += AXISSTR[angle[0]+angle[1]] + ZSTR[angle[2]+angle[3]] + solutions[i].trim() + "\n";
+							}
+						}
+					} else {
+						document.getElementById(angle).value = `no solutions found for max ${eoMaxDepth}, ${crossMaxDepth}`;
+					}
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<h1>EOcross solver</h1>
+
+		<div>
+			scramble <input id="scramble"> <br>
+			max EO depth <input type="number" id="eoMaxDepth" value="5"> max cross depth <input type="number" id="crossMaxDepth" value="4"> <br>
+			<input type="button" id="solveButton" value="solve" onclick="solve()"> <i>may take a while, please be patient!</i>
+		</div>
+
+		<div>
+			F/B axis solutions
+			<textarea class="solution" id="FBz0"></textarea>
+			<textarea class="solution" id="FBz1"></textarea>
+			<textarea class="solution" id="FBz2"></textarea>
+			<textarea class="solution" id="FBz3"></textarea>
+	  	</div>
+	  	<div>
+			R/L axis solutions
+			<textarea class="solution" id="RLz0"></textarea>
+			<textarea class="solution" id="RLz1"></textarea>
+			<textarea class="solution" id="RLz2"></textarea>
+			<textarea class="solution" id="RLz3"></textarea>
+	 	</div>
+	  	<div>
+			U/D axis solutions
+			<textarea class="solution" id="UDz0"></textarea>
+			<textarea class="solution" id="UDz1"></textarea>
+			<textarea class="solution" id="UDz2"></textarea>
+			<textarea class="solution" id="UDz3"></textarea>
+	  	</div>
+	</body>
+</html>
